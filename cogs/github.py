@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from datetime import datetime
-from services.github_service import github_service, GitHubUserNotFound, GitHubServiceError
+from services.github_service import get_github_user
 
 
 class GitHub(commands.Cog):
@@ -32,29 +32,26 @@ class GitHub(commands.Cog):
                 return
 
             # Fetch user data from GitHub API
-            user_data = await github_service.get_user(username.strip())
+            user_data = await get_github_user(username.strip())
+
+            # Handle user not found
+            if user_data is None:
+                await self._send_error_embed(
+                    interaction,
+                    "User Not Found",
+                    f"Could not find GitHub user `{username}`. Please check the username and try again."
+                )
+                return
 
             # Create and send embed
             embed = await self._create_user_embed(user_data, interaction.user)
             await interaction.followup.send(embed=embed)
 
-        except GitHubUserNotFound:
-            await self._send_error_embed(
-                interaction,
-                "User Not Found",
-                f"Could not find GitHub user `{username}`. Please check the username and try again."
-            )
-        except GitHubServiceError as e:
+        except Exception as e:
             await self._send_error_embed(
                 interaction,
                 "GitHub API Error",
                 f"Failed to fetch user data: {str(e)}"
-            )
-        except Exception as e:
-            await self._send_error_embed(
-                interaction,
-                "Unexpected Error",
-                f"An unexpected error occurred: {str(e)}"
             )
 
     async def _create_user_embed(
@@ -74,48 +71,58 @@ class GitHub(commands.Cog):
         """
         # Parse creation date
         try:
-            created_at_str = user_data["created_at"]
+            created_at_str = user_data.get("created_at", "")
             created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
             created_at_display = f"<t:{int(created_at.timestamp())}:f>"
-        except (ValueError, KeyError):
+        except (ValueError, TypeError):
             created_at_display = "Unknown"
+
+        # Prepare user name and bio
+        name = user_data.get("name") or user_data.get("login", "Unknown")
+        bio = user_data.get("bio") or "No bio provided"
+        username = user_data.get("login", "Unknown")
+        avatar_url = user_data.get("avatar_url", "")
+        profile_url = user_data.get("html_url", "")
 
         # Create embed
         embed = discord.Embed(
-            title=f"{user_data['name']}",
-            description=user_data["bio"],
-            url=user_data["profile_url"],
+            title=f"{name}",
+            description=bio,
+            url=profile_url,
             color=discord.Color.from_rgb(88, 88, 88),  # GitHub dark gray
             timestamp=datetime.utcnow()
         )
 
         # Avatar
-        if user_data["avatar_url"]:
-            embed.set_thumbnail(url=user_data["avatar_url"])
+        if avatar_url:
+            embed.set_thumbnail(url=avatar_url)
 
         # Username and ID
         embed.add_field(
             name="👤 GitHub Username",
-            value=f"[`{user_data['username']}`]({user_data['profile_url']})",
+            value=f"[`{username}`]({profile_url})",
             inline=True
         )
 
         # Stats row 1
+        followers = user_data.get("followers", 0)
+        following = user_data.get("following", 0)
         embed.add_field(
             name="👥 Followers",
-            value=f"`{user_data['followers']:,}`",
+            value=f"`{followers:,}`",
             inline=True
         )
         embed.add_field(
             name="🔗 Following",
-            value=f"`{user_data['following']:,}`",
+            value=f"`{following:,}`",
             inline=True
         )
 
         # Stats row 2
+        public_repos = user_data.get("public_repos", 0)
         embed.add_field(
             name="📦 Public Repos",
-            value=f"`{user_data['public_repos']:,}`",
+            value=f"`{public_repos:,}`",
             inline=True
         )
 
@@ -133,24 +140,27 @@ class GitHub(commands.Cog):
         )
 
         # Additional info
-        if user_data["company"] != "Not specified":
+        company = user_data.get("company")
+        if company:
             embed.add_field(
                 name="🏢 Company",
-                value=user_data["company"],
+                value=company,
                 inline=True
             )
 
-        if user_data["location"] != "Not specified":
+        location = user_data.get("location")
+        if location:
             embed.add_field(
                 name="📍 Location",
-                value=user_data["location"],
+                value=location,
                 inline=True
             )
 
-        if user_data["blog"] != "None":
+        blog = user_data.get("blog")
+        if blog:
             embed.add_field(
                 name="🌐 Website",
-                value=f"[Visit]({user_data['blog']})",
+                value=f"[Visit]({blog})",
                 inline=True
             )
 

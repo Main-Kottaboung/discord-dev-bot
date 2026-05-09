@@ -18,15 +18,20 @@ A production-grade Discord bot built with discord.py 2.x featuring utility comma
   - Location, company, and website information
   - Graceful error handling for invalid usernames
 
-### 👨‍💻 Dev Commands (`/dev`)
-- Developer-specific utilities for bot management
+### 🌤️ Weather Information (`/weather`)
+- **`/weather <location>`** — Get current weather data with:
+  - Real-time temperature, feels-like, min/max
+  - Humidity, pressure, and wind information
+  - Cloud coverage and visibility
+  - Dynamic emoji and color-coded embeds
+  - Support for any city worldwide
 
 ## Requirements
 
 - Python 3.9+
 - discord.py 2.0+
-- aiohttp
-- python-dotenv
+- aiohttp (for API calls)
+- python-dotenv (for environment variables)
 
 ## Installation
 
@@ -56,7 +61,10 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory:
 ```env
 DISCORD_TOKEN=your_bot_token_here
+WEATHER_API_KEY=your_openweathermap_api_key_here
 ```
+
+Get a free OpenWeatherMap API key: https://openweathermap.org/api
 
 ### 5. Run the Bot
 ```bash
@@ -75,10 +83,12 @@ discord-dev-bot/
 ├── cogs/                  # Command cogs
 │   ├── utility.py        # Utility commands (ping, avatar, server, userinfo)
 │   ├── github.py         # GitHub integration command
+│   ├── weather.py        # Weather information command
 │   └── dev.py            # Developer commands
 │
 ├── services/              # Business logic layer
-│   └── github_service.py # GitHub API interaction service
+│   ├── github_service.py # GitHub API interaction service
+│   └── weather_service.py # OpenWeatherMap API service
 │
 └── utils/                 # Utility functions
     └── embeds.py         # Common embed utilities
@@ -100,6 +110,13 @@ discord-dev-bot/
 ```
 /github torvalds                   # Get Linus Torvalds' profile
 /github gvanrossum                 # Get Guido van Rossum's profile
+```
+
+### Weather Commands
+```
+/weather London                    # Get weather for London
+/weather Tokyo                     # Get weather for Tokyo
+/weather "New York"                # Get weather for New York
 ```
 
 ## Architecture
@@ -160,6 +177,13 @@ All commands use Discord's native slash commands (app_commands).
 - **Rate Limit**: 60 requests per hour (unauthenticated)
 - **Timeout**: 10 seconds
 - **Session**: Persistent aiohttp session for efficiency
+
+### OpenWeatherMap API
+- **Endpoint**: `https://api.openweathermap.org/data/2.5/weather`
+- **Units**: Metric (Celsius, m/s)
+- **Timeout**: 10 seconds
+- **Free Tier**: 1,000 calls/day
+- **Sign Up**: https://openweathermap.org/api
 
 ## Development
 
